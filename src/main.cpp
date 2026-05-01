@@ -16,6 +16,7 @@
 #include "src/extra/libs/png/lv_png.h"
 #include "src/extra/libs/gif/lv_gif.h"
 
+#define BUZZER_PIN 23
 // =====================================================
 // NTP & MQTT CONFIG
 // =====================================================
@@ -55,6 +56,18 @@ String target_pass = "";
 
 unsigned long ready_screen_timer = 0;
 unsigned long main_screen_timer  = 0;
+
+// =====================================================
+// HÀM ĐIỀU KHIỂN BUZZER
+// =====================================================
+void buzzer_beep(int times, int duration_ms, int delay_between = 100) {
+    for (int i = 0; i < times; i++) {
+        digitalWrite(BUZZER_PIN, HIGH);
+        delay(duration_ms);
+        digitalWrite(BUZZER_PIN, LOW);
+        if (i < times - 1) delay(delay_between);
+    }
+}
 
 // =====================================================
 // FORWARD DECLARE
@@ -149,6 +162,7 @@ void process_payment(String jsonBody) {
     if (type != nullptr && String(type) == "cancel") {
         ui_show_main_screen();
         is_payment_shown = false;
+        buzzer_beep(1, 500);
         return;
     }
 
@@ -165,6 +179,7 @@ void process_payment(String jsonBody) {
     if (qrText != nullptr && strlen(qrText) > 0) {
         is_payment_shown = true;
         ui_show_payment_qr_screen(amountStr.c_str(), cleanAddInfo.c_str(), qrText);
+        buzzer_beep(2, 150);
         Serial.println("QR DIRECT OK");
         return;
     }
@@ -198,6 +213,7 @@ void process_payment(String jsonBody) {
             qrStr.replace("\\/", "/");
             is_payment_shown = true;
             ui_show_payment_qr_screen(amountStr.c_str(), addInfo, qrStr.c_str());
+            buzzer_beep(2, 150);
         }
     }
     http.end();
@@ -252,6 +268,9 @@ void setup() {
 
     lv_init();
     lv_png_init();
+
+    pinMode(BUZZER_PIN, OUTPUT);
+    digitalWrite(BUZZER_PIN, LOW);
 
     lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 20);
     static lv_disp_drv_t disp_drv;
@@ -313,6 +332,7 @@ void loop() {
         static unsigned long startTry = millis();
         if (WiFi.status() == WL_CONNECTED) {
             currentState = STATE_SYSTEM_READY;
+            buzzer_beep(1, 200);
             configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
             ui_show_system_ready_screen(WiFi.localIP().toString().c_str());
             ui_update_wifi_status(true);
